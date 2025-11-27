@@ -1,0 +1,269 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="my_bot">
+
+    <!-- ==================================================== -->
+    <!--                    INERTIAL MACROS                   -->
+    <!-- ==================================================== -->
+    <xacro:macro name="inertial_cylinder" params="mass length radius *origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <mass value="${mass}" />
+            <inertia ixx="${(1/12) * mass * (3*radius*radius + length*length)}" ixy="0.0" ixz="0.0"
+                    iyy="${(1/12) * mass * (3*radius*radius + length*length)}" iyz="0.0"
+                    izz="${(1/2) * mass * (radius*radius)}" />
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="inertial_box" params="mass x y z *origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <mass value="${mass}" />
+            <inertia ixx="${(1/12) * mass * (y*y+z*z)}" ixy="0.0" ixz="0.0"
+                    iyy="${(1/12) * mass * (x*x+z*z)}" iyz="0.0"
+                    izz="${(1/12) * mass * (x*x+y*y)}" />
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="inertial_sphere" params="mass radius *origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <mass value="${mass}" />
+            <inertia ixx="${(2/5) * mass * (radius*radius)}" ixy="0.0" ixz="0.0"
+                    iyy="${(2/5) * mass * (radius*radius)}" iyz="0.0"
+                    izz="${(2/5) * mass * (radius*radius)}" />
+        </inertial>
+    </xacro:macro>
+
+    <!-- ==================================================== -->
+    <!--                  LINKS & JOINTS                      -->
+    <!-- ==================================================== -->
+    
+    <!-- BASE LINK -->
+    <link name="base_link">
+        <visual>
+            <geometry><box size="0.42 0.31 0.18"/></geometry>
+            <material name="cyan"><color rgba="0 1 1 1"/></material>
+        </visual>
+        <collision>
+            <geometry><box size="0.42 0.31 0.18"/></geometry>
+        </collision>
+        <xacro:inertial_box mass="15" x="0.42" y="0.31" z="0.18">
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </xacro:inertial_box>
+    </link>
+
+    <!-- BASE FOOTPRINT (Required for KDL/Nav2) -->
+    <link name="base_footprint"/>
+    <joint name="base_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="base_footprint"/>
+        <origin xyz="0 0 -0.15" rpy="0 0 0"/>
+    </joint>
+
+    <!-- LEFT WHEEL -->
+    <link name="drivewhl_l_link">
+        <visual>
+            <geometry><cylinder radius="0.1" length="0.04"/></geometry>
+            <material name="grey"><color rgba="0.3 0.3 0.3 1"/></material>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </visual>
+        <collision>
+            <geometry><cylinder radius="0.1" length="0.04"/></geometry>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </collision>
+        <xacro:inertial_cylinder mass="0.5" length="0.04" radius="0.1">
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="drivewhl_l_joint" type="continuous">
+        <parent link="base_link"/>
+        <child link="drivewhl_l_link"/>
+        <origin xyz="-0.12 0.18 -0.05" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <!-- RIGHT WHEEL -->
+    <link name="drivewhl_r_link">
+        <visual>
+            <geometry><cylinder radius="0.1" length="0.04"/></geometry>
+            <material name="grey"/>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </visual>
+        <collision>
+            <geometry><cylinder radius="0.1" length="0.04"/></geometry>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </collision>
+        <xacro:inertial_cylinder mass="0.5" length="0.04" radius="0.1">
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+    <joint name="drivewhl_r_joint" type="continuous">
+        <parent link="base_link"/>
+        <child link="drivewhl_r_link"/>
+        <origin xyz="-0.12 -0.18 -0.05" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <!-- CASTER WHEEL -->
+    <link name="front_caster">
+        <visual>
+            <geometry><sphere radius="0.06"/></geometry>
+            <material name="cyan"/>
+        </visual>
+        <collision>
+            <geometry><sphere radius="0.06"/></geometry>
+        </collision>
+        <xacro:inertial_sphere mass="0.5" radius="0.06">
+            <origin xyz="0 0 0"/>
+        </xacro:inertial_sphere>
+    </link>
+
+    <joint name="caster_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="front_caster"/>
+        <origin xyz="0.14 0 -0.09" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Friction for Caster (Crucial for movement) -->
+    <gazebo reference="front_caster">
+        <mu1>0.001</mu1>
+        <mu2>0.001</mu2>
+    </gazebo>
+
+    <!-- ==================================================== -->
+    <!--                     SENSORS                          -->
+    <!-- ==================================================== -->
+
+    <!-- IMU -->
+    <link name="imu_link">
+        <visual>
+            <geometry><box size="0.1 0.1 0.1"/></geometry>
+        </visual>
+        <collision>
+            <geometry><box size="0.1 0.1 0.1"/></geometry>
+        </collision>
+        <xacro:inertial_box mass="0.1" x="0.1" y="0.1" z="0.1">
+            <origin xyz="0 0 0"/>
+        </xacro:inertial_box>
+    </link>
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="imu_link"/>
+        <origin xyz="0 0 0.01"/>
+    </joint>
+
+    <gazebo reference="imu_link">
+        <sensor name="imu_sensor" type="imu">
+            <always_on>1</always_on>
+            <update_rate>100</update_rate>
+            <topic>demo/imu</topic>
+        </sensor>
+    </gazebo>
+
+    <!-- LIDAR -->
+    <link name="lidar_link">
+        <visual>
+            <geometry><cylinder radius="0.05" length="0.055"/></geometry>
+        </visual>
+        <collision>
+            <geometry><cylinder radius="0.05" length="0.055"/></geometry>
+        </collision>
+        <xacro:inertial_cylinder mass="0.1" radius="0.05" length="0.055">
+            <origin xyz="0 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_link"/>
+        <origin xyz="0 0 0.12"/>
+    </joint>
+
+    <gazebo reference="lidar_link">
+        <sensor name="lidar" type="gpu_lidar">
+            <always_on>true</always_on>
+            <visualize>true</visualize>
+            <topic>scan</topic>
+            <update_rate>10</update_rate>
+            <ray>
+                <scan>
+                    <horizontal>
+                        <samples>360</samples>
+                        <resolution>1.0</resolution>
+                        <min_angle>0.0</min_angle>
+                        <max_angle>6.28</max_angle>
+                    </horizontal>
+                </scan>
+                <range>
+                    <min>0.12</min>
+                    <max>3.5</max>
+                </range>
+            </ray>
+        </sensor>
+    </gazebo>
+
+    <!-- DEPTH CAMERA -->
+    <link name="camera_link">
+        <visual>
+            <geometry><box size="0.015 0.130 0.022"/></geometry>
+        </visual>
+        <collision>
+            <geometry><box size="0.015 0.130 0.022"/></geometry>
+        </collision>
+        <xacro:inertial_box mass="0.035" x="0.015" y="0.13" z="0.022">
+            <origin xyz="0 0 0"/>
+        </xacro:inertial_box>
+    </link>
+    <joint name="camera_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="camera_link"/>
+        <origin xyz="0.215 0 0.05"/>
+    </joint>
+
+    <gazebo reference="camera_link">
+        <sensor name="depth_camera" type="rgbd_camera">
+            <topic>depth_camera</topic>
+            <always_on>true</always_on>
+            <visualize>true</visualize>
+            <update_rate>10</update_rate>
+            <camera>
+                <horizontal_fov>1.047</horizontal_fov>
+                <image>
+                    <width>640</width>
+                    <height>480</height>
+                </image>
+                <clip>
+                    <near>0.05</near>
+                    <far>3</far>
+                </clip>
+            </camera>
+        </sensor>
+    </gazebo>
+
+    <!-- ==================================================== -->
+    <!--             HARMONIC PLUGINS (THE FIX)               -->
+    <!-- ==================================================== -->
+
+    <gazebo>
+        <!-- Diff Drive Controller -->
+        <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+            <left_joint>drivewhl_l_joint</left_joint>
+            <right_joint>drivewhl_r_joint</right_joint>
+            <wheel_separation>0.4</wheel_separation>
+            <wheel_radius>0.1</wheel_radius>
+            <odom_publish_frequency>50</odom_publish_frequency>
+            <topic>demo/cmd_vel</topic>
+            <odom_topic>demo/odom</odom_topic>
+            <tf_topic>tf</tf_topic>
+            <frame_id>odom</frame_id>
+            <child_frame_id>base_link</child_frame_id>
+        </plugin>
+
+        <!-- Joint State Publisher (Crucial for Rviz) -->
+        <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+            <topic>joint_states</topic>
+        </plugin>
+    </gazebo>
+
+</robot>
